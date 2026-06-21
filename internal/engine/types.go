@@ -9,7 +9,7 @@ import (
 type CmdKind int
 
 const (
-	WriteCmd    CmdKind = iota
+	WriteCmd CmdKind = iota
 	QueryCmd
 	FlushDoneCmd
 	CompactionCmd
@@ -25,8 +25,8 @@ type Command struct {
 }
 
 type Response struct {
-	Data  interface{}
-	Err   error
+	Data interface{}
+	Err  error
 }
 
 type WritePayload struct {

@@ -11,21 +11,21 @@ import (
 )
 
 const (
-	recordHeaderSize = 8
+	recordHeaderSize     = 8
 	defaultFsyncInterval = 10 * time.Millisecond
 	defaultByteThreshold = 1 << 20
 )
 
 type Writer struct {
-	file         *os.File
-	buf          *bufio.Writer
-	fsyncInterval time.Duration
-	byteThreshold int
+	file            *os.File
+	buf             *bufio.Writer
+	fsyncInterval   time.Duration
+	byteThreshold   int
 	bytesSinceFlush int
-	ticker       *time.Ticker
-	offset       int64
-	mu           sync.Mutex
-	closed       bool
+	ticker          *time.Ticker
+	offset          int64
+	mu              sync.Mutex
+	closed          bool
 }
 
 type Option func(*Writer)
@@ -57,12 +57,12 @@ func NewWriter(path string, opts ...Option) (*Writer, error) {
 		return nil, err
 	}
 	w := &Writer{
-		file:         f,
-		buf:          bufio.NewWriterSize(f, 1<<20),
+		file:          f,
+		buf:           bufio.NewWriterSize(f, 1<<20),
 		fsyncInterval: defaultFsyncInterval,
 		byteThreshold: defaultByteThreshold,
-		ticker:       time.NewTicker(defaultFsyncInterval),
-		offset:       info.Size(),
+		ticker:        time.NewTicker(defaultFsyncInterval),
+		offset:        info.Size(),
 	}
 	for _, opt := range opts {
 		opt(w)

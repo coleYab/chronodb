@@ -69,10 +69,10 @@ func TestSysCollector_EmitsMemory(t *testing.T) {
 	go sc.Run(ctx, sampleCh)
 
 	metrics := map[string]bool{
-		"system.memory.total":          false,
-		"system.memory.available":      false,
-		"system.memory.used":           false,
-		"system.memory.used_percent":   false,
+		"system.memory.total":        false,
+		"system.memory.available":    false,
+		"system.memory.used":         false,
+		"system.memory.used_percent": false,
 	}
 
 	deadline := time.After(2 * time.Second)

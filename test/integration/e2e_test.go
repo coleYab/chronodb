@@ -148,7 +148,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 	var queryResult struct {
 		Results []struct {
-			SeriesID uint64           `json:"series_id"`
+			SeriesID uint64            `json:"series_id"`
 			Buckets  []json.RawMessage `json:"buckets"`
 			Err      string            `json:"error"`
 		} `json:"results"`

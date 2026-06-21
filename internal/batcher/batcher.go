@@ -20,9 +20,9 @@ type Batcher struct {
 }
 
 type Config struct {
-	BatchSize   int
-	FlushEvery  time.Duration
-	QueueSize   int
+	BatchSize  int
+	FlushEvery time.Duration
+	QueueSize  int
 }
 
 func New(cfg Config) *Batcher {

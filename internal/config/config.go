@@ -26,13 +26,13 @@ func (d *Duration) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 type Config struct {
-	Agent        AgentConfig            `yaml:"agent"`
-	Output       OutputConfig           `yaml:"output"`
-	DefaultTags  map[string]string      `yaml:"default_tags"`
-	FileTail     []FileTailConfig       `yaml:"file_tail"`
-	System       SystemConfig           `yaml:"system"`
-	StatsD       StatsDConfig           `yaml:"statsd"`
-	Docker       DockerConfig           `yaml:"docker"`
+	Agent       AgentConfig       `yaml:"agent"`
+	Output      OutputConfig      `yaml:"output"`
+	DefaultTags map[string]string `yaml:"default_tags"`
+	FileTail    []FileTailConfig  `yaml:"file_tail"`
+	System      SystemConfig      `yaml:"system"`
+	StatsD      StatsDConfig      `yaml:"statsd"`
+	Docker      DockerConfig      `yaml:"docker"`
 }
 
 type AgentConfig struct {
@@ -43,9 +43,9 @@ type AgentConfig struct {
 }
 
 type OutputConfig struct {
-	URL       string `yaml:"url"`
-	Timeout   Duration `yaml:"timeout"`
-	RetryMax  int      `yaml:"retry_max"`
+	URL      string   `yaml:"url"`
+	Timeout  Duration `yaml:"timeout"`
+	RetryMax int      `yaml:"retry_max"`
 }
 
 type FileTailConfig struct {

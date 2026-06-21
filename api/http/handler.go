@@ -75,9 +75,9 @@ func (h *Handler) handleWrite(w http.ResponseWriter, r *http.Request) {
 
 		payload := engine.WritePayload{SeriesID: seriesID, Points: pts}
 		cmd := engine.Command{
-			Kind:   engine.WriteCmd,
+			Kind:    engine.WriteCmd,
 			Payload: payload,
-			RespCh: make(chan engine.Response, 1),
+			RespCh:  make(chan engine.Response, 1),
 		}
 		if err := h.engine.Submit(cmd); err != nil {
 			writeJSON(w, http.StatusServiceUnavailable, writeResponse{Error: err.Error()})
@@ -109,9 +109,9 @@ type queryResponse struct {
 }
 
 type queryResultJSON struct {
-	SeriesID uint64           `json:"series_id"`
-	Buckets  []query.Bucket   `json:"buckets,omitempty"`
-	Points   []pointJSON      `json:"points,omitempty"`
+	SeriesID uint64         `json:"series_id"`
+	Buckets  []query.Bucket `json:"buckets,omitempty"`
+	Points   []pointJSON    `json:"points,omitempty"`
 }
 
 func (h *Handler) handleQuery(w http.ResponseWriter, r *http.Request) {
@@ -142,9 +142,9 @@ func (h *Handler) handleQuery(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cmd := engine.Command{
-		Kind:   engine.QueryCmd,
+		Kind:    engine.QueryCmd,
 		Payload: payload,
-		RespCh: make(chan engine.Response, 1),
+		RespCh:  make(chan engine.Response, 1),
 	}
 	if err := h.engine.Submit(cmd); err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, queryResponse{Error: err.Error()})
@@ -271,64 +271,79 @@ var landingHTML = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ChronoDB</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+<title>Chronodb</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #fff;
+    color: #1a1a1a;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+  .container {
+    max-width: 640px;
+    width: 100%;
+    text-align: center;
+  }
+  h1 {
+    font-size: clamp(2.8rem, 12vw, 5rem);
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 1.25rem;
+    color: #1a1a1a;
+  }
+  .desc {
+    font-size: clamp(0.95rem, 4vw, 1.15rem);
+    color: #444;
+    line-height: 1.6;
+    max-width: 540px;
+    margin: 0 auto 2.5rem;
+  }
+  .buttons {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .btn {
+    display: inline-block;
+    padding: 0.75rem 1.75rem;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: opacity 0.2s;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn-primary {
+    background: #49cc90;
+    color: #fff;
+  }
+  .btn-secondary {
+    background: transparent;
+    color: #49cc90;
+    border: 2px solid #49cc90;
+  }
+  @media (max-width: 480px) {
+    body { padding: 1.5rem; }
+    .buttons { flex-direction: column; align-items: center; }
+    .btn { width: 100%; max-width: 280px; text-align: center; }
+  }
+</style>
 </head>
-<body class="bg-white" style="font-family: 'Courier New', Courier, monospace;">
-<div class="container py-5">
-  <div class="text-center mb-5">
-    <h1 class="font-weight-bold" style="font-size: 3rem;">ChronoDB</h1>
-    <p class="text-muted">Single-threaded, embedded time-series database for edge devices and lightweight observability</p>
-  </div>
-
-  <div class="row mb-4">
-    <div class="col-sm-6 col-md-3 mb-3">
-      <div class="border p-3 text-center bg-light">
-        <h5 class="font-weight-bold">Blazing Fast</h5>
-        <p class="small text-muted mb-0">Single-threaded engine with zero-GC write path and lock-free architecture</p>
-      </div>
-    </div>
-    <div class="col-sm-6 col-md-3 mb-3">
-      <div class="border p-3 text-center bg-light">
-        <h5 class="font-weight-bold">Embedded</h5>
-        <p class="small text-muted mb-0">Runs as a library or standalone server — no external dependencies</p>
-      </div>
-    </div>
-    <div class="col-sm-6 col-md-3 mb-3">
-      <div class="border p-3 text-center bg-light">
-        <h5 class="font-weight-bold">Queryable</h5>
-        <p class="small text-muted mb-0">Time-range queries with aggregation, bucketing, and tag filtering</p>
-      </div>
-    </div>
-    <div class="col-sm-6 col-md-3 mb-3">
-      <div class="border p-3 text-center bg-light">
-        <h5 class="font-weight-bold">Agent Mode</h5>
-        <p class="small text-muted mb-0">Collect system, Docker, file-tail, and StatsD metrics out of the box</p>
-      </div>
-    </div>
-  </div>
-
-  <div class="border p-4 mb-4 bg-light">
-    <h4 class="font-weight-bold">Quick Start</h4>
-    <pre class="bg-white border p-3 small mt-3" style="color: #333;"># Start the server
-chronodb serve
-
-# Write a data point
-curl -X POST http://localhost:8080/write \
-  -H 'Content-Type: application/json' \
-  -d '{"series":[{"metric":"cpu","tags":{"host":"s1"},"points":[{"timestamp":1000,"value":0.85}]}]}'
-
-# Query data
-curl -X POST http://localhost:8080/query \
-  -H 'Content-Type: application/json' \
-  -d '{"metric":"cpu","start":"2024-01-01T00:00:00Z","end":"2024-01-02T00:00:00Z"}'</pre>
-    <div class="text-center mt-3">
-      <a href="/docs" class="btn btn-dark">API Documentation</a>
-      <a href="https://github.com/coleYab/chronodb" class="btn btn-outline-secondary ml-2">GitHub</a>
-    </div>
+<body>
+<div class="container">
+  <h1>Chronodb</h1>
+  <p class="desc">An ultra-fast, zero-dependency time series database engineered to store, aggregate, and query metrics effortlessly using standard HTTP requests.</p>
+  <div class="buttons">
+    <a href="/docs" class="btn btn-primary">Open Documentation</a>
+    <a href="https://github.com/coleYab/tsdb" class="btn btn-secondary">GitHub Repository</a>
   </div>
 </div>
-<div class="text-center text-muted small py-3 border-top">&copy; 2026 ChronoDB &mdash; MIT License</div>
 </body>
 </html>`
 
@@ -609,5 +624,3 @@ var openapiJSON = `{
     }
   }
 }`
-
-

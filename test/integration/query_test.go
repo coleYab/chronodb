@@ -109,7 +109,7 @@ func TestQueryAggregation(t *testing.T) {
 	}
 
 	for i, b := range buckets {
-		expectedSum := float64(i*10 + (i*10+9)) * 10 / 2
+		expectedSum := float64(i*10+(i*10+9)) * 10 / 2
 		if b.Sum != expectedSum {
 			t.Fatalf("bucket %d [%d]: expected sum %f, got %f", i, b.Start, expectedSum, b.Sum)
 		}

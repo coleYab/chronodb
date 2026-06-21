@@ -209,11 +209,11 @@ type dockerContainer struct {
 }
 
 type dockerStats struct {
-	CPUStats    cpuStats    `json:"cpu_stats"`
-	PreCPUStats cpuStats    `json:"precpu_stats"`
-	MemoryStats memoryStats `json:"memory_stats"`
+	CPUStats    cpuStats            `json:"cpu_stats"`
+	PreCPUStats cpuStats            `json:"precpu_stats"`
+	MemoryStats memoryStats         `json:"memory_stats"`
 	Networks    map[string]netStats `json:"networks"`
-	BlkioStats  blkioStats  `json:"blkio_stats"`
+	BlkioStats  blkioStats          `json:"blkio_stats"`
 }
 
 type cpuStats struct {

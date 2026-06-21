@@ -32,7 +32,7 @@ func TestEngineWriteAndRead(t *testing.T) {
 	go e.Run(ctx)
 
 	cmd := Command{
-		Kind:   WriteCmd,
+		Kind: WriteCmd,
 		Payload: WritePayload{
 			SeriesID: 1,
 			Points:   []memtable.Point{{Timestamp: 100, Value: 1.0}},

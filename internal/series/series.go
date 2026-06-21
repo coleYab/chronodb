@@ -33,9 +33,9 @@ func SeriesKey(metric string, tags map[string]string) uint64 {
 }
 
 type Registry struct {
-	mu     sync.RWMutex
-	byID   map[uint64]SeriesMeta
-	byKey  map[string]uint64
+	mu    sync.RWMutex
+	byID  map[uint64]SeriesMeta
+	byKey map[string]uint64
 }
 
 func NewRegistry() *Registry {

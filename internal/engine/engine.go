@@ -32,12 +32,12 @@ type Error struct {
 func (e *Error) Error() string { return e.msg }
 
 type Metrics struct {
-	PointsWritten  atomic.Int64
-	WritesOK       atomic.Int64
-	WritesError    atomic.Int64
-	FlushesTotal   atomic.Int64
+	PointsWritten    atomic.Int64
+	WritesOK         atomic.Int64
+	WritesError      atomic.Int64
+	FlushesTotal     atomic.Int64
 	CompactionsTotal atomic.Int64
-	QueriesTotal   atomic.Int64
+	QueriesTotal     atomic.Int64
 }
 
 type Engine struct {

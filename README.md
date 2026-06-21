@@ -142,4 +142,3 @@ make test
 21 packages, 100+ tests covering write path, query engine, crash recovery,
 compaction, retention, HTTP API, agent collectors, shipper, batcher,
 and end-to-end integration.
-# tsdb

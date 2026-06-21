@@ -1,0 +1,32 @@
+default_tags:
+  env: desktop
+
+agent:
+  hostname: ""
+  batch_size: 1000
+  batch_interval: "1s"
+  queue_size: 100000
+
+output:
+  url: "http://localhost:8080/write"
+  timeout: "1s"
+  retry_max: 3
+
+system:
+  interval: "15s"
+  enabled_metrics:
+    - cpu
+    - memory
+    - disk
+    - net
+
+statsd:
+  listen: ":8125"
+  enabled: true
+
+docker:
+  enabled: false
+  interval: "15s"
+  endpoint: "unix:///var/run/docker.sock"
+
+file_tail: []

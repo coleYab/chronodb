@@ -51,6 +51,8 @@ func doRequest(h *Handler, method, path, body string) *httptest.ResponseRecorder
 	w := httptest.NewRecorder()
 
 	switch {
+	case path == "/batch" || strings.HasPrefix(path, "/batch"):
+		h.handleBatchAdd(w, req)
 	case path == "/write" || strings.HasPrefix(path, "/write"):
 		h.handleWrite(w, req)
 	case path == "/query" || strings.HasPrefix(path, "/query"):
@@ -125,6 +127,118 @@ func TestWriteEmptyBody(t *testing.T) {
 	w := doRequest(h, "POST", "/write", `{}`)
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestWriteBatch(t *testing.T) {
+	h, _, cancel := setupTestServer(t)
+	defer cancel()
+
+	body := `{
+		"series": [
+			{
+				"metric": "cpu_usage",
+				"tags": {"host": "server1"},
+				"points": [{"timestamp": 100, "value": 0.5}]
+			},
+			{
+				"metric": "mem_usage",
+				"tags": {"host": "server1"},
+				"points": [{"timestamp": 200, "value": 65.0}, {"timestamp": 300, "value": 70.0}]
+			},
+			{
+				"metric": "disk_io",
+				"tags": {"host": "server1", "device": "sda1"},
+				"points": [{"timestamp": 400, "value": 1024.0}]
+			}
+		]
+	}`
+
+	w := doRequest(h, "POST", "/write", body)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp writeResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.Written != 3 {
+		t.Fatalf("expected 3 series written, got %d", resp.Written)
+	}
+	if resp.Error != "" {
+		t.Fatalf("unexpected error: %s", resp.Error)
+	}
+
+	metrics := h.registry.ListMetrics()
+	if len(metrics) != 3 {
+		t.Fatalf("expected 3 metrics, got %v", metrics)
+	}
+}
+
+func TestBatchAddEndpoint(t *testing.T) {
+	h, e, cancel := setupTestServer(t)
+	defer cancel()
+
+	body := `{
+		"points": [
+			{"metric": "cpu_usage", "tags": {"host": "server1"}, "timestamp": 100, "value": 0.5},
+			{"metric": "cpu_usage", "tags": {"host": "server1"}, "timestamp": 200, "value": 0.8},
+			{"metric": "mem_usage", "tags": {"host": "server1"}, "timestamp": 300, "value": 65.0}
+		]
+	}`
+
+	w := doRequest(h, "POST", "/batch", body)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp batchAddResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.Written != 3 {
+		t.Fatalf("expected 3 points written, got %d", resp.Written)
+	}
+	if resp.Error != "" {
+		t.Fatalf("unexpected error: %s", resp.Error)
+	}
+
+	metrics := h.registry.ListMetrics()
+	if len(metrics) != 2 {
+		t.Fatalf("expected 2 metrics, got %v", metrics)
+	}
+
+	_ = e
+}
+
+func TestBatchAddInvalidJSON(t *testing.T) {
+	h, _, cancel := setupTestServer(t)
+	defer cancel()
+
+	w := doRequest(h, "POST", "/batch", "not json")
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestBatchAddEmptyPoints(t *testing.T) {
+	h, _, cancel := setupTestServer(t)
+	defer cancel()
+
+	w := doRequest(h, "POST", "/batch", `{"points": []}`)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestBatchAddWrongMethod(t *testing.T) {
+	h, _, cancel := setupTestServer(t)
+	defer cancel()
+
+	w := doRequest(h, "GET", "/batch", "")
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected 405, got %d", w.Code)
 	}
 }
 

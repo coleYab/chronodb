@@ -198,6 +198,59 @@ func TestEngineMemtableRotation(t *testing.T) {
 	cancel()
 }
 
+func TestEngineBatchWrite(t *testing.T) {
+	dir := t.TempDir()
+	cfg := testConfig(dir)
+
+	e, err := New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go e.Run(ctx)
+	defer cancel()
+
+	payloads := BatchWritePayload{
+		{SeriesID: 1, Points: []memtable.Point{{Timestamp: 100, Value: 1.0}}},
+		{SeriesID: 2, Points: []memtable.Point{{Timestamp: 200, Value: 2.0}, {Timestamp: 300, Value: 3.0}}},
+		{SeriesID: 3, Points: []memtable.Point{{Timestamp: 400, Value: 4.0}}},
+	}
+
+	cmd := Command{
+		Kind:    BatchWriteCmd,
+		Payload: payloads,
+		RespCh:  make(chan Response, 1),
+	}
+
+	if err := e.Submit(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	resp := <-cmd.RespCh
+	if resp.Err != nil {
+		t.Fatal(resp.Err)
+	}
+
+	if got := len(e.active.Get(1)); got != 1 {
+		t.Fatalf("expected 1 point for series 1, got %d", got)
+	}
+	if got := len(e.active.Get(2)); got != 2 {
+		t.Fatalf("expected 2 points for series 2, got %d", got)
+	}
+	if got := e.active.Get(3); got == nil || len(got) != 1 {
+		t.Fatalf("expected 1 point for series 3")
+	}
+
+	m := e.Metrics()
+	if m.WritesOK.Load() != 1 {
+		t.Fatalf("expected 1 write ok, got %d", m.WritesOK.Load())
+	}
+	if m.PointsWritten.Load() != 4 {
+		t.Fatalf("expected 4 points written, got %d", m.PointsWritten.Load())
+	}
+}
+
 func TestEngineUnknownCommand(t *testing.T) {
 	dir := t.TempDir()
 	cfg := DefaultConfig()

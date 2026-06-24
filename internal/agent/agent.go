@@ -100,7 +100,17 @@ func (a *Agent) runShipper(ctx context.Context) {
 }
 
 func (a *Agent) startCollectors(defaultTags map[string]string) error {
-	var cols []collector.Collector
+	capacity := len(a.cfg.FileTail)
+	if len(a.cfg.System.EnabledMetrics) > 0 {
+		capacity++
+	}
+	if a.cfg.StatsD.Enabled {
+		capacity++
+	}
+	if a.cfg.Docker.Enabled {
+		capacity++
+	}
+	cols := make([]collector.Collector, 0, capacity)
 
 	for _, ft := range a.cfg.FileTail {
 		var parser transform.Parser

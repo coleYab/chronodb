@@ -30,6 +30,6 @@ func main() {
 	slog.Info("chrono-agent starting", "output", cfg.Output.URL)
 	if err := a.Run(ctx); err != nil {
 		slog.Error("agent error", "err", err)
-		os.Exit(1)
+		return
 	}
 }

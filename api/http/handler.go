@@ -60,7 +60,7 @@ func (h *Handler) handleWrite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	total := 0
+	payloads := make(engine.BatchWritePayload, 0, len(req.Series))
 	for _, sw := range req.Series {
 		if len(sw.Points) == 0 {
 			continue
@@ -73,25 +73,25 @@ func (h *Handler) handleWrite(w http.ResponseWriter, r *http.Request) {
 			pts[i] = memtable.Point{Timestamp: p.Timestamp, Value: p.Value}
 		}
 
-		payload := engine.WritePayload{SeriesID: seriesID, Points: pts}
-		cmd := engine.Command{
-			Kind:    engine.WriteCmd,
-			Payload: payload,
-			RespCh:  make(chan engine.Response, 1),
-		}
-		if err := h.engine.Submit(cmd); err != nil {
-			writeJSON(w, http.StatusServiceUnavailable, writeResponse{Error: err.Error()})
-			return
-		}
-		resp := <-cmd.RespCh
-		if resp.Err != nil {
-			writeJSON(w, http.StatusInternalServerError, writeResponse{Error: resp.Err.Error()})
-			return
-		}
-		total++
+		payloads = append(payloads, engine.WritePayload{SeriesID: seriesID, Points: pts})
 	}
 
-	writeJSON(w, http.StatusOK, writeResponse{Written: total})
+	cmd := engine.Command{
+		Kind:    engine.BatchWriteCmd,
+		Payload: payloads,
+		RespCh:  make(chan engine.Response, 1),
+	}
+	if err := h.engine.Submit(cmd); err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, writeResponse{Error: err.Error()})
+		return
+	}
+	resp := <-cmd.RespCh
+	if resp.Err != nil {
+		writeJSON(w, http.StatusInternalServerError, writeResponse{Error: resp.Err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, writeResponse{Written: len(payloads)})
 }
 
 type queryRequest struct {
@@ -374,6 +374,79 @@ var swaggerHTML = `<!DOCTYPE html>
 </body>
 </html>`
 
+type batchAddPoint struct {
+	Metric    string            `json:"metric"`
+	Tags      map[string]string `json:"tags"`
+	Timestamp int64             `json:"timestamp"`
+	Value     float64           `json:"value"`
+}
+
+type batchAddRequest struct {
+	Points []batchAddPoint `json:"points"`
+}
+
+type batchAddResponse struct {
+	Written int    `json:"written"`
+	Error   string `json:"error,omitempty"`
+}
+
+func (h *Handler) handleBatchAdd(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req batchAddRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, batchAddResponse{Error: err.Error()})
+		return
+	}
+
+	if len(req.Points) == 0 {
+		writeJSON(w, http.StatusBadRequest, batchAddResponse{Error: "no points provided"})
+		return
+	}
+
+	grouped := make(map[string]*engine.WritePayload)
+	var keys []string
+
+	for _, p := range req.Points {
+		seriesID, _ := h.registry.GetOrCreate(p.Metric, p.Tags)
+		h.index.Insert(seriesID, p.Metric, p.Tags)
+
+		key := fmt.Sprintf("%s|%d", p.Metric, seriesID)
+		wp, ok := grouped[key]
+		if !ok {
+			wp = &engine.WritePayload{SeriesID: seriesID}
+			grouped[key] = wp
+			keys = append(keys, key)
+		}
+		wp.Points = append(wp.Points, memtable.Point{Timestamp: p.Timestamp, Value: p.Value})
+	}
+
+	payloads := make(engine.BatchWritePayload, 0, len(keys))
+	for _, k := range keys {
+		payloads = append(payloads, *grouped[k])
+	}
+
+	cmd := engine.Command{
+		Kind:    engine.BatchWriteCmd,
+		Payload: payloads,
+		RespCh:  make(chan engine.Response, 1),
+	}
+	if err := h.engine.Submit(cmd); err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, batchAddResponse{Error: err.Error()})
+		return
+	}
+	resp := <-cmd.RespCh
+	if resp.Err != nil {
+		writeJSON(w, http.StatusInternalServerError, batchAddResponse{Error: resp.Err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, batchAddResponse{Written: len(req.Points)})
+}
+
 var openapiJSON = `{
   "openapi": "3.1.0",
   "info": {
@@ -534,6 +607,36 @@ var openapiJSON = `{
           "503": { "description": "Unhealthy" }
         }
       }
+    },
+    "/batch": {
+      "post": {
+        "summary": "Batch add data points",
+        "description": "Add individual data points in bulk. Points are grouped by series automatically.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchAddRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Points written successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchAddResponse"
+                }
+              }
+            }
+          },
+          "400": { "description": "Bad request" },
+          "503": { "description": "Service unavailable" }
+        }
+      }
     }
   },
   "components": {
@@ -563,6 +666,28 @@ var openapiJSON = `{
         "type": "object",
         "properties": {
           "written": { "type": "integer", "description": "Number of series written" },
+          "error": { "type": "string" }
+        }
+      },
+      "BatchAddPoint": {
+        "type": "object",
+        "properties": {
+          "metric": { "type": "string", "description": "Metric name" },
+          "tags": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Key-value tag pairs" },
+          "timestamp": { "type": "integer", "description": "Unix timestamp in milliseconds" },
+          "value": { "type": "number", "format": "double" }
+        }
+      },
+      "BatchAddRequest": {
+        "type": "object",
+        "properties": {
+          "points": { "type": "array", "items": { "$ref": "#/components/schemas/BatchAddPoint" } }
+        }
+      },
+      "BatchAddResponse": {
+        "type": "object",
+        "properties": {
+          "written": { "type": "integer", "description": "Number of points written" },
           "error": { "type": "string" }
         }
       },

@@ -50,7 +50,7 @@ func (s *StatsDListener) Run(ctx context.Context, out chan<- core.Sample) error 
 		case <-s.stopCh:
 			return nil
 		default:
-			pc.SetReadDeadline(time.Now().Add(time.Second))
+			_ = pc.SetReadDeadline(time.Now().Add(time.Second))
 			n, _, err := pc.ReadFrom(buf)
 			if err != nil {
 				if netErr, ok := err.(net.Error); ok && netErr.Timeout() {

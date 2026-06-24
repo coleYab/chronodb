@@ -158,6 +158,8 @@ func (e *Engine) dispatch(cmd Command) {
 	switch cmd.Kind {
 	case WriteCmd:
 		e.handleWrite(cmd)
+	case BatchWriteCmd:
+		e.handleBatchWrite(cmd)
 	case QueryCmd:
 		e.handleQuery(cmd)
 	case FlushDoneCmd:
@@ -315,6 +317,26 @@ func (e *Engine) handleWrite(cmd Command) {
 	e.metrics.PointsWritten.Add(int64(len(payload.Points)))
 	e.metrics.WritesOK.Add(1)
 	slog.Debug("write ok", "series_id", payload.SeriesID, "points", len(payload.Points))
+	cmd.RespCh <- Response{}
+}
+
+func (e *Engine) handleBatchWrite(cmd Command) {
+	payloads := cmd.Payload.(BatchWritePayload)
+	totalPoints := 0
+	for _, p := range payloads {
+		data := encodeWritePayload(p)
+		if err := e.wal.Append(data); err != nil {
+			e.metrics.WritesError.Add(1)
+			slog.Error("batch write failed", "series_id", p.SeriesID, "points", len(p.Points), "err", err)
+			cmd.RespCh <- Response{Err: err}
+			return
+		}
+		e.active.Insert(p.SeriesID, p.Points)
+		totalPoints += len(p.Points)
+	}
+	e.metrics.PointsWritten.Add(int64(totalPoints))
+	e.metrics.WritesOK.Add(1)
+	slog.Debug("batch write ok", "series_count", len(payloads), "points", totalPoints)
 	cmd.RespCh <- Response{}
 }
 

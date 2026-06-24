@@ -21,6 +21,7 @@ type Server struct {
 func NewServer(addr string, e *engine.Engine, reg *series.Registry, idx *index.Index) *Server {
 	h := NewHandler(e, reg, idx)
 	mux := http.NewServeMux()
+	mux.HandleFunc("/batch", h.handleBatchAdd)
 	mux.HandleFunc("/write", h.handleWrite)
 	mux.HandleFunc("/query", h.handleQuery)
 	mux.HandleFunc("/metrics", h.handleListMetrics)

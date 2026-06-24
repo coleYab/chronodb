@@ -16,6 +16,7 @@ const (
 	CompactionDoneCmd
 	RetentionCmd
 	ShutdownCmd
+	BatchWriteCmd
 )
 
 type Command struct {
@@ -33,6 +34,8 @@ type WritePayload struct {
 	SeriesID uint64
 	Points   []memtable.Point
 }
+
+type BatchWritePayload []WritePayload
 
 type QueryPayload struct {
 	Metric      string
